@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/docker/docker/api/types"
@@ -13,7 +14,23 @@ import (
 
 func main() {
 	log.Println("Starting Registrator53")
+
+	//Getting Environment variables
+	domainName, ok := os.LookupEnv("DOMAIN_NAME")
+	if !ok {
+		log.Println("Domain Name not set")
+		panic("Domain Name not set")
+	} else {
+		//Prepending . for DNS convention and Route53
+		domainName = "." + domainName
+	}
+	hostedZoneID, ok := os.LookupEnv("HOSTED_ZONE_ID")
+	if !ok {
+		panic("Zone_ID not set")
+	}
+
 	ctx := context.Background()
+	//Creating docker client
 	cli, err := client.NewClientWithOpts(client.WithVersion("v1.37"))
 	if err != nil {
 		panic(err)
@@ -25,18 +42,17 @@ func main() {
 	//Getting Private IP of the instance
 	privateIP := ec2.GetPrivateIP(sess)
 	events, _ := cli.Events(ctx, types.EventsOptions{})
-	// if errors != nil {
-	// 	panic(errors)
-	// }
+
 	for msg := range events {
-		dnsName := msg.Actor.Attributes["name"] + ".els.vpc.local"
+		containerName := msg.Actor.Attributes["name"]
+		dnsName := containerName + domainName
 		switch msg.Status {
 		case "start":
-			log.Println("Container Starting:", msg.Actor.Attributes["name"])
-			route53.CreateRoute53Record(sess, dnsName, privateIP, "ContainerTest", "DNSZONEID", "UPSERT")
+			log.Println("Container Starting:", containerName)
+			route53.CreateRoute53Record(sess, dnsName, privateIP, containerName, hostedZoneID, "UPSERT")
 		case "die":
-			log.Println("Container Killing:", msg.Actor.Attributes["name"])
-			route53.CreateRoute53Record(sess, dnsName, privateIP, "ContainerTest", "DNSZONEID", "DELETE")
+			log.Println("Container Killing:", containerName)
+			route53.CreateRoute53Record(sess, dnsName, privateIP, containerName, hostedZoneID, "DELETE")
 		}
 	}
 }
