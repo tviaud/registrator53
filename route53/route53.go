@@ -10,9 +10,8 @@ import (
 )
 
 //CreateRoute53Record Create AWS session
-func CreateRoute53Record(sess *session.Session, dnsName string, ip string, containerName string, hostedZoneID string, actionRoute53 string) {
+func CreateRoute53Record(sess *session.Session, dnsName string, ip string, containerName string, hostedZoneID string, actionRoute53 string) bool {
 	svc := route53.New(sess)
-	route53comment := "Insert DNS record for " + containerName
 	recordSetInput := &route53.ChangeResourceRecordSetsInput{
 		ChangeBatch: &route53.ChangeBatch{
 			Changes: []*route53.Change{
@@ -30,7 +29,7 @@ func CreateRoute53Record(sess *session.Session, dnsName string, ip string, conta
 					},
 				},
 			},
-			Comment: aws.String(route53comment),
+			Comment: aws.String("Insert DNS record for " + containerName),
 		},
 		HostedZoneId: aws.String(hostedZoneID),
 	}
@@ -43,16 +42,21 @@ func CreateRoute53Record(sess *session.Session, dnsName string, ip string, conta
 			switch aerr.Code() {
 			case route53.ErrCodeNoSuchHostedZone:
 				log.Println(route53.ErrCodeNoSuchHostedZone, aerr.Error())
+				return false
 			case route53.ErrCodeInvalidChangeBatch:
 				log.Println(route53.ErrCodeInvalidChangeBatch, aerr.Error())
+				return false
 			case route53.ErrCodeInvalidInput:
 				log.Println(route53.ErrCodeInvalidInput, aerr.Error())
+				return false
 			case route53.ErrCodePriorRequestNotComplete:
 				log.Println(route53.ErrCodePriorRequestNotComplete, aerr.Error())
+				return false
 			default:
 				log.Println(aerr.Error())
+				return false
 			}
 		}
 	}
-	return
+	return true
 }

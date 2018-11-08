@@ -49,10 +49,16 @@ func main() {
 		switch msg.Status {
 		case "start":
 			log.Println("Container Starting:", containerName)
-			route53.CreateRoute53Record(sess, dnsName, privateIP, containerName, hostedZoneID, "UPSERT")
+			result := route53.CreateRoute53Record(sess, dnsName, privateIP, containerName, hostedZoneID, "UPSERT")
+			if result == false {
+				log.Println("Record not Created")
+			}
 		case "die":
 			log.Println("Container Killing:", containerName)
-			route53.CreateRoute53Record(sess, dnsName, privateIP, containerName, hostedZoneID, "DELETE")
+			result := route53.CreateRoute53Record(sess, dnsName, privateIP, containerName, hostedZoneID, "DELETE")
+			if result == false {
+				log.Println("Record not Removed")
+			}
 		}
 	}
 }
